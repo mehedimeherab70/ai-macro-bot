@@ -1,0 +1,44 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Setup EAS CLI
+        run: npm install -g eas-cli
+      
+      - name: Build APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: |
+          npx eas build --platform android --profile preview --non-interactive --no-wait
+          echo "Build triggered! Check https://expo.dev for download link."
+      
+      - name: Build using Gradle (fallback)
+        if: env.EXPO_TOKEN == ''
+        run: |
+          npx expo prebuild --platform android --no-install
+          cd android
+          ./gradlew assembleRelease
+          
+      - name: Upload APK
+        if: env.EXPO_TOKEN == ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-macro-bot-apk
+          path: android/app/build/outputs/apk/release/*.apk
